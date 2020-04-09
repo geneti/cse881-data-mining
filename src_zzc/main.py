@@ -17,7 +17,7 @@ import torch.optim as optim
 import utils
 from LoadData import DataLoader
 from NaiveBayes import NB_Model
-# from BLSTM_2DCNN import BLSTM_2DCNN
+from BLSTM_2DCNN import BLSTM_2DCNN
 
 MODE = ["train", "test", "all"]
 MODEL = ["nb", "blstm", "all"]
@@ -25,6 +25,7 @@ ACTIVATION_FUNC = ["ReLU", "Tanh"]
 OPTIMIZER = ["Adam", "SGD"]
 
 USE_CUDA = torch.cuda.is_available()
+USE_CUDA = False
 gpus = [0]
 torch.cuda.set_device(gpus[0])
 
@@ -42,7 +43,7 @@ def parse_arguments(argv):
                         choices=MODEL, default="E2ENCR", )
     parser.add_argument("--data_root", type=str,
                         help="path to the data",
-                        default=".\\dataset", )
+                        default=".\\data", )
     parser.add_argument("--res_root", type=str,
                         help="root for the results",
                         default=".\\results", )
@@ -104,26 +105,24 @@ def train_blstm_2dcnn(argv, model, loader):
     param = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = (optim.Adam(param, lr=argv.lr)
                  if argv.optimizer == "Adam" else optim.SGD(param, lr=argv.lr))
-    if argv.use_checkpoint and os.path.exists(
-            os.path.join(argv.checkpoint_root, argv.checkpoint_name)):
-        print(
-            f"Training: Loading {os.path.join(argv.checkpoint_root, argv.checkpoint_name)}"
-        )
-        checkpoint = torch.load(
-            os.path.join(argv.checkpoint_root, argv.checkpoint_name))
+
+    checkpoint_path = os.path.join(argv.checkpoint_root, argv.checkpoint_name)
+    if argv.use_checkpoint and os.path.exists(checkpoint_path):
+        print(f"Training: Loading {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch_offset = checkpoint['epoch']
     else:
-        model.init_weight(loader.glove)
+        model.init_weight()
         epoch_offset = 0
 
     for epoch in range(argv.epoch):
         epoch += epoch_offset
         losses = []
         acc = []
-        for i, batch in enumerate(loader.get_batch(train=True)):
-            gts = LongTensor(batch[0])
+        for i, batch in enumerate(loader.get_batch(train=True, val=False)):
+            gts = LongTensor(batch[0]) - 1
             msgs = LongTensor(batch[1])
             msg_len = LongTensor(batch[2])
 
@@ -148,7 +147,7 @@ def train_blstm_2dcnn(argv, model, loader):
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
-            }, os.path.join(argv.checkpoint_root, argv.checkpoint_name))
+            }, checkpoint_path)
 
 
 def test_blstm_2dcnn(model, loader, only=False):
@@ -157,7 +156,7 @@ def test_blstm_2dcnn(model, loader, only=False):
     preds_list = []
     gts_list = []
     for batch in loader.get_batch():
-        gts = LongTensor(batch[0])
+        gts = LongTensor(batch[0]) - 1
         msgs = LongTensor(batch[1])
         msg_len = LongTensor(batch[2])
 
@@ -176,12 +175,15 @@ def test_blstm_2dcnn(model, loader, only=False):
     print(f"Test: mean_loss : {loss:0.2f}, acc: {acc*100:0.2f}%")
     if only:
         print(classification_report(gts, preds, target_names=loader.labels))
-        plot_confusion_matrix(loader, gts, preds, "BLSTM-2DCNN.png")
+        utils.plot_confusion_matrix(loader, gts, preds, "BLSTM-2DCNN.png")
 
 
 def main(argv):
+    # train_mode = DataLoader.TRAIN_USE_ALL
+    train_mode = DataLoader.TRAIN_WITH_VALIDATION
+
     loader = DataLoader(argv)
-    loader.read_data(DataLoader.TRAIN_SUBSET)
+    loader.read_data(train_mode)
 
     if not os.path.exists(argv.res_root):
         os.mkdir(argv.res_root)
@@ -192,41 +194,50 @@ def main(argv):
 
         if argv.mode in ["train", "test", "all"]:
             # train Naive Bayes
+            print('\tNB training')
             NB_model.train(loader.data_train)
+
+            # validate Navie Bayes
+            if len(loader.data_val) > 0:
+                print('\tNB validation')
+                preds = NB_model.test(loader.data_val)
+                out_path = os.path.join(argv.res_root, 'Bayes_validation.txt')
+                utils.save_preds(out_path, preds)
+                gts = list(zip(*loader.data_val))[0]
+
+                print(f'\tThe accuracy is %.2f%%' % (accuracy_score(gts, preds) * 100)) # yapf: disable
+                target_names = [str(l) for l in loader.labels]
+                print(
+                    classification_report(gts,
+                                          preds,
+                                          target_names=target_names))
+                utils.plot_confusion_matrix(
+                    loader.labels, gts, preds,
+                    os.path.join(argv.res_root, "Bayes_validation.png"))
             # test Naive Bayes
+            print('\tNB testing')
             preds = NB_model.test(loader.data_test)
-            gts = list(zip(*loader.data_test))[0]
-            print(f'\tThe accuracy is %.2f%%' %
-                  (accuracy_score(gts, preds) * 100))
-            print(
-                classification_report(
-                    gts, preds, target_names=[str(l) for l in loader.labels]))
-            utils.plot_confusion_matrix(
-                loader, gts, preds, os.path.join(argv.res_root, "Bayes.png"))
-            out_path = os.path.join(argv.res_root, 'Bayes.txt')
+
+            out_path = os.path.join(argv.res_root, 'Bayes_test.txt')
             utils.save_preds(out_path, preds)
-            # print(incorrect)
 
-    # if argv.model in ["blstm", "all"]:
-    #     print(f"##### BLSTM-2DCNN {'#'*50}")
-    #     if argv.is_glove:
-    #         loader.read_glove(argv.glove_path, argv.emb_size)
-    #     loader.prepare_data()
+    if argv.model in ["blstm", "all"]:
+        print(f"##### BLSTM-2DCNN {'#'*50}")
 
-    #     blstm_2dcnn_model = BLSTM_2DCNN(argv, loader.word2idx,
-    #                                     loader.desired_len)
+        blstm_2dcnn_model = BLSTM_2DCNN(argv, loader.desired_len,
+                                        loader.idx_max, loader.labels)
 
-    #     if USE_CUDA:
-    #         blstm_2dcnn_model = blstm_2dcnn_model.cuda()
-    #     if argv.mode in ["train", "all"]:
-    #         # train BLSTM-2DCNN
-    #         train_blstm_2dcnn(argv, blstm_2dcnn_model, loader)
-    #     if argv.mode in ["test", "all"]:
-    #         # test BLSTM-2DCNN
-    #         checkpoint = torch.load(
-    #             os.path.join(argv.checkpoint_root, argv.checkpoint_name))
-    #         blstm_2dcnn_model.load_state_dict(checkpoint['model_state_dict'])
-    #         test_blstm_2dcnn(blstm_2dcnn_model, loader, only=True)
+        if USE_CUDA:
+            blstm_2dcnn_model = blstm_2dcnn_model.cuda()
+        if argv.mode in ["train", "all"]:
+            # train BLSTM-2DCNN
+            train_blstm_2dcnn(argv, blstm_2dcnn_model, loader)
+        if argv.mode in ["test", "all"]:
+            # test BLSTM-2DCNN
+            checkpoint = torch.load(
+                os.path.join(argv.checkpoint_root, argv.checkpoint_name))
+            blstm_2dcnn_model.load_state_dict(checkpoint['model_state_dict'])
+            test_blstm_2dcnn(blstm_2dcnn_model, loader, only=True)
 
     print()
 
@@ -234,9 +245,9 @@ def main(argv):
 if __name__ == "__main__":
     # main(parse_arguments(sys.argv[1:]))
     main(
-        parse_arguments("all all "
-                        "--data_root .\\dataset "
-                        "--fold 10 "
+        parse_arguments("all blstm "
+                        "--data_root .\\data "
+                        "--fold 5 "
                         # "--use_checkpoint "
                         "--checkpoint_name checkpoint_acc98_v2.pkl "
                         # "--seed 4437098522973987586 "
@@ -248,10 +259,10 @@ if __name__ == "__main__":
                         # "--is_glove "
                         "--desired_len_percent 0.5 "
                         "--emb_drop_r 0.5 "
-                        "--emb_size 300 "
+                        "--emb_size 50 "
                         "--lstm_drop_r 0.2 "
                         "--lstm_n_layer 1 "
-                        "--lstm_hidden_sz 300 "
+                        "--lstm_hidden_sz 50 "
                         "--cnn_n_kernel 50 "
                         "--cnn_kernel_sz 3 "
                         "--cnn_pool_kernel_sz 2 ".split()))

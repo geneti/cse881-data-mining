@@ -19,6 +19,8 @@ class NB_Model(object):
         self.vocab = set()
 
         self.eps = eps
+        self.unknown_cnt = 0
+        self.known_cnt = 0
 
     def train(self, data):
         total_word = dict.fromkeys(self.labels, 0)
@@ -44,15 +46,19 @@ class NB_Model(object):
 
     def test(self, data):
         preds = []
-        for gt, msg in data:
+        self.unknown_cnt = 0
+        self.known_cnt = 0
+        for _, msg in data:
             predict = dict.fromkeys(self.labels)
             for c in predict.keys():
                 predict[c] = math.log(self.c[c])
                 for word in msg:
                     if word in self.wc[c].keys():
                         predict[c] += math.log(self.wc[c][word], 2)
+                        self.known_cnt +=1
                     else:
                         predict[c] += math.log(self.unknown[c], 2)
+                        self.unknown_cnt += 1
             result = max(predict.items(), key=operator.itemgetter(1))[0]
             preds.append(result)
         return preds

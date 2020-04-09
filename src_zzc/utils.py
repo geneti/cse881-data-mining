@@ -13,13 +13,13 @@ def save_preds(file_path, preds):
             f.write(f'{pred}\n')
 
 
-def plot_confusion_matrix(loader, gts, preds, file_name):
+def plot_confusion_matrix(labels, gts, preds, file_name):
     array = confusion_matrix(gts, preds)
-    df_cm = pd.DataFrame(array, index=loader.labels, columns=loader.labels)
+    df_cm = pd.DataFrame(array, index=labels, columns=labels)
 
     plt.figure()
-    font_size = 14
-    sn.set(font_scale=1.2)
+    font_size = 9
+    sn.set(font_scale=1)
     ax = sn.heatmap(df_cm,
                     cmap='Blues',
                     annot=True,
