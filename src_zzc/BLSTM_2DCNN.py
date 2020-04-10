@@ -50,7 +50,6 @@ class BLSTM_2DCNN(nn.Module):
         # self.len_after_cnn = int(
         #     (desired_len - argv.cnn_kernel_sz + 1) / argv.cnn_pool_kernel_sz)
 
-
         self.fc = nn.Sequential(
             nn.Linear(argv.lstm_hidden_sz, len(labels)),
             nn.Softmax(dim=1),
@@ -107,7 +106,7 @@ class BLSTM_2DCNN(nn.Module):
         out, _ = torch.nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
 
         h = out[:, :, :self.argv.lstm_hidden_sz] + out[:, :, self.argv.lstm_hidden_sz:] # yapf: disable
-        h = h.sum(1) / msg_len
+        h = h.sum(1) / msg_len.unsqueeze(-1)
 
         # h = h.unsqueeze(1)
 

@@ -1,13 +1,24 @@
 import time
 import main
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import os
 
 import seaborn as sn
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
+def mkdir(folder, recurse=True):
+    """ mkdir, make parent directory if not exist
+    """
+    if folder != '' and not os.path.exists(folder):
+        if recurse:
+            mkdir(os.path.dirname(folder), recurse=True)
+        os.mkdir(folder)
+
+
 def save_preds(file_path, preds):
+    mkdir(os.path.dirname(file_path), recurse=True)
     with open(file_path, 'w', encoding='utf-8') as f:
         for pred in preds:
             f.write(f'{pred}\n')

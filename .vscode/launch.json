@@ -8,7 +8,7 @@
             "name": "Python: main.py",
             "type": "python",
             "request": "launch",
-            "program": "${cwd}\\src_zzc\\main.py",
+            "program": "${cwd}/src_zzc/main.py",
             "console": "integratedTerminal"
         },
         {

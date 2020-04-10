@@ -33,7 +33,7 @@ class DataLoader(object):
     def __init__(self, argv):
         # seed = random.randrange(sys.maxsize)
         random.seed(argv.seed)
-        print("Seed was:", argv.seed)
+        print("DataLoader Seed was:", argv.seed)
 
         self.data_root = argv.data_root
         self.fold = argv.fold
@@ -137,7 +137,7 @@ class DataLoader(object):
                     item.msg = item.msg[:self.desired_len]
 
             # list of gt + list of msg idx, ordered by len(msg)
-            batch.sort(key=lambda x: x.msg.count(0))
+            # batch.sort(key=lambda x: x.msg.count(0))
             yield list(zip(*batch)) + [[
                 len(item.msg) - item.msg.count(0) for item in batch
             ]]

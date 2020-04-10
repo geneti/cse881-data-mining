@@ -1,6 +1,7 @@
 # Zhongzheng Added
 *.png
 *results
+*checkpoint*
 
 # ChangLiu add
 dataset/PCA
