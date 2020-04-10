@@ -10,7 +10,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from classifier import tfidf
 
 # Load Original unstructured data
-dataset_address = '~/dataset/'
+dataset_address = './dataset/'
 LDA_address = 'LDA/'
 a = np.array(pd.read_csv(dataset_address + 'Training_Label.txt', sep=',', header=None, engine='python'))
 b = np.array(pd.read_csv(dataset_address + 'Training.txt', sep=' ', header=None, engine='python'))

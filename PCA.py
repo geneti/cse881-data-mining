@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 from classifier import tfidf
 
 # Load Original unstructured data
-dataset_address = '~/dataset/'
+dataset_address = './dataset/'
 PCA_address = 'PCA/'
 a = np.array(pd.read_csv(dataset_address + 'Training_Label.txt', sep=',', header=None, engine='python'))
 b = np.array(pd.read_csv(dataset_address + 'Training.txt', sep=' ', header=None, engine='python'))
