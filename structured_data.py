@@ -5,7 +5,7 @@ import sys
 import pickle
 import json
 sys.path.insert(0, '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/')
-from classifier import Bayes_Classifier 
+from classifier import Bayes_Classifier
 
 # Load Original unstructured data
 dataset_address = '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/dataset/'
@@ -13,6 +13,11 @@ train_label = np.array(pd.read_csv(dataset_address + 'Training_Label.txt', sep='
 train_data = np.array(pd.read_csv(dataset_address + 'Training.txt', sep=' ', header=None, engine='python'))
 test_data = np.array(pd.read_csv(dataset_address + 'Test.txt', sep=' ', header=None, engine='python'))
 # Get Sample info
+
+trd = train_data[1000:len(train_data)-1]
+trl = train_label[1000:len(train_label)-1]
+ted = train_label[0:1000]
+
 N = len(train_data)
 
 classifier = Bayes_Classifier.bayes_classifier(train_label)
