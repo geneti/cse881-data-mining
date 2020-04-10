@@ -5,21 +5,12 @@ import sys
 import pickle
 import json
 import os.path
-from sklearn import linear_model, neighbors, datasets
-from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-## model definition
-lr = linear_model.LinearRegression()
-lasso = linear_model.Lasso(alpha=0.1)
-ridge = linear_model.Ridge(alpha = 0.5)
-
-sys.path.insert(0, '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/')
 from classifier import tfidf
 
 # Load Original unstructured data
-dataset_address = '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/dataset/'
+dataset_address = '~/dataset/'
 PCA_address = 'PCA/'
 a = np.array(pd.read_csv(dataset_address + 'Training_Label.txt', sep=',', header=None, engine='python'))
 b = np.array(pd.read_csv(dataset_address + 'Training.txt', sep=' ', header=None, engine='python'))
@@ -41,7 +32,7 @@ else:
 	y_train = train_matrix.get_label()
 
 	# apply PCA to transform the sparse matrix
-	pca1 = PCA(n_components = 1000)
+	pca1 = PCA()
 	pca1.fit(x_train, y_train)
 	p_train = pca1.transform(x_train)
 	print('train_data size after PCA: ', p_train.shape)
@@ -65,7 +56,7 @@ else:
 	y_test = test_matrix.get_label()
 
 	print('begin PCA 2')
-	pca2 = PCA(n_components = 1000)
+	pca2 = PCA()
 	pca2.fit(x_test,y_test)
 	p_test = pca2.transform(x_test)
 	print('test_data size after PCA: ', p_test.shape)
@@ -83,7 +74,7 @@ def accuracy(pred, test_labels):
 	ac /= len(pred)
 	return ac
 
-n_neighbors = 5000
+n_neighbors = 200
 # knn classification
 knn = neighbors.KNeighborsClassifier(n_neighbors, weights='distance')
 knn.fit(p_train, y_train)

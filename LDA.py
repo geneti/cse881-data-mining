@@ -5,15 +5,12 @@ import sys
 import pickle
 import json
 import os.path
-from sklearn import linear_model, neighbors, datasets
-from sklearn.metrics import accuracy_score
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-sys.path.insert(0, '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/')
 from classifier import tfidf
 
 # Load Original unstructured data
-dataset_address = '/Users/liuchang/Desktop/msu_all/homework/data_mining/cse881/project/cse881-data-mining/dataset/'
+dataset_address = '~/dataset/'
 LDA_address = 'LDA/'
 a = np.array(pd.read_csv(dataset_address + 'Training_Label.txt', sep=',', header=None, engine='python'))
 b = np.array(pd.read_csv(dataset_address + 'Training.txt', sep=' ', header=None, engine='python'))
@@ -77,7 +74,7 @@ def accuracy(pred, test_labels):
 	ac /= len(pred)
 	return ac
 
-n_neighbors = 5000
+n_neighbors = 200
 # knn classification
 knn = neighbors.KNeighborsClassifier(n_neighbors, weights='distance')
 knn.fit(p_train, y_train)
