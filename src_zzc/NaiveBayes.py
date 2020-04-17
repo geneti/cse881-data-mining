@@ -8,14 +8,14 @@ NB_MODEL_PARAM_PATH = "NB_param.pkl"
 
 
 class NB_Model(object):
-    def __init__(self, argv, labels, eps=0.1):
+    def __init__(self, argv, eps=0.1):
         self.argv = argv
-        self.labels = labels
-        self.wc = dict.fromkeys(labels)
-        for key in labels:
+        self.labels = list(range(1, argv.num_label + 1))
+        self.wc = dict.fromkeys(self.labels)
+        for key in self.labels:
             self.wc[key] = dict()
-        self.c = dict.fromkeys(labels, 0)
-        self.unknown = dict.fromkeys(labels)
+        self.c = dict.fromkeys(self.labels, 0)
+        self.unknown = dict.fromkeys(self.labels)
         self.vocab = set()
 
         self.eps = eps
@@ -55,10 +55,30 @@ class NB_Model(object):
                 for word in msg:
                     if word in self.wc[c].keys():
                         predict[c] += math.log(self.wc[c][word], 2)
-                        self.known_cnt +=1
+                        self.known_cnt += 1
                     else:
                         predict[c] += math.log(self.unknown[c], 2)
                         self.unknown_cnt += 1
             result = max(predict.items(), key=operator.itemgetter(1))[0]
             preds.append(result)
         return preds
+
+    def state_dict(self):
+        return {
+            "wc": self.wc,
+            "c": self.c,
+            "unknown": self.unknown,
+            "vocab": self.vocab,
+            "eps": self.eps,
+            "unknown_cnt": self.unknown_cnt,
+            "known_cnt": self.known_cnt
+        }
+
+    def load_state_dict(self, checkpoint):
+        self.wc = checkpoint["wc"]
+        self.c = checkpoint["c"]
+        self.unknown = checkpoint["unknown"]
+        self.vocab = checkpoint["vocab"]
+        self.eps = checkpoint["eps"]
+        self.unknown_cnt = checkpoint["unknown_cnt"]
+        self.known_cn = checkpoint["known_cnt"]

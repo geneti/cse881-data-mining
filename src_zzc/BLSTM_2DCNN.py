@@ -17,16 +17,15 @@ import torch.optim as optim
 
 
 class BLSTM_2DCNN(nn.Module):
-    def __init__(self, argv, desired_len, idx_max, labels):
+    def __init__(self, argv, desired_len):
         super(BLSTM_2DCNN, self).__init__()
         self.pad = 0
         self.argv = argv
-        self.labels = labels
         self.desired_len = desired_len
 
         self.emb_dropout = nn.Dropout(argv.emb_drop_r)
 
-        self.embed = nn.Embedding(idx_max + 1,
+        self.embed = nn.Embedding(argv.max_idx + 1,
                                   argv.emb_size,
                                   padding_idx=self.pad)
 
@@ -38,26 +37,27 @@ class BLSTM_2DCNN(nn.Module):
             bidirectional=True,
             dropout=argv.lstm_drop_r if argv.lstm_n_layer > 1 else 0)
 
-        # self.conv = nn.Sequential(
-        #     nn.Conv2d(1, argv.cnn_n_kernel, kernel_size=argv.cnn_kernel_sz),
-        #     nn.ReLU() if argv.activate_func == "ReLU" else nn.Tanh(),
-        #     nn.MaxPool2d(kernel_size=argv.cnn_pool_kernel_sz),
-        # )
+        self.conv = nn.Sequential(
+            nn.Conv2d(1, argv.cnn_n_kernel, kernel_size=argv.cnn_kernel_sz),
+            nn.ReLU() if argv.activate_func == "ReLU" else nn.Tanh(),
+            nn.MaxPool2d(kernel_size=argv.cnn_pool_kernel_sz),
+        )
 
-        # self.hidden_sz_after_cnn = int(
-        #     (argv.lstm_hidden_sz - argv.cnn_kernel_sz + 1) /
-        #     argv.cnn_pool_kernel_sz)
-        # self.len_after_cnn = int(
-        #     (desired_len - argv.cnn_kernel_sz + 1) / argv.cnn_pool_kernel_sz)
-
+        self.hidden_sz_after_cnn = int(
+            (argv.lstm_hidden_sz - argv.cnn_kernel_sz + 1) /
+            argv.cnn_pool_kernel_sz)
+        self.len_after_cnn = int(
+            (desired_len - argv.cnn_kernel_sz + 1) / argv.cnn_pool_kernel_sz)
         self.fc = nn.Sequential(
-            nn.Linear(argv.lstm_hidden_sz, len(labels)),
+            nn.Linear(
+                self.hidden_sz_after_cnn * self.len_after_cnn *
+                argv.cnn_n_kernel, argv.num_label),
             nn.Softmax(dim=1),
         )
-        # self.fc2 = nn.Sequential(
-        #     nn.Linear(argv.lstm_hidden_sz, len(labels)),
-        #     nn.Softmax(dim=1),
-        # )
+        self.fc2 = nn.Sequential(
+            nn.Linear(argv.lstm_hidden_sz, argv.num_label),
+            nn.Softmax(dim=1),
+        )
 
     def init_weight(self):
         self.embed.weight = nn.init.xavier_uniform_(self.embed.weight)
@@ -66,18 +66,6 @@ class BLSTM_2DCNN(nn.Module):
                 nn.init.constant_(param, 0.0)
             elif "weight" in name:
                 nn.init.xavier_uniform_(param)
-
-    # def _get_pretrained_emb_weights(self, glove, word2idx):
-    #     emb_size = len(next(iter(glove.values())))
-    #     matrix = np.zeros((len(word2idx), emb_size))
-    #     for word in word2idx.keys():
-    #         try:
-    #             matrix[word2idx[word]] = glove[word]
-    #         except KeyError:
-    #             # if word != '<PAD>':
-    #             matrix[word2idx[word]] = np.random.normal(scale=0.6,
-    #                                                       size=(emb_size, ))
-    #     return torch.from_numpy(matrix)
 
     def init_hidden(self):
         forward = Variable(
@@ -106,18 +94,16 @@ class BLSTM_2DCNN(nn.Module):
         out, _ = torch.nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
 
         h = out[:, :, :self.argv.lstm_hidden_sz] + out[:, :, self.argv.lstm_hidden_sz:] # yapf: disable
-        h = h.sum(1) / msg_len.unsqueeze(-1)
-
-        # h = h.unsqueeze(1)
+        h = h.unsqueeze(1)
 
         # CNN layer
-        # O = self.conv(h)
-        # O = F.pad(O, (0, 0, 0, self.len_after_cnn - O.size(2)),
-        #           mode="constant",
-        #           value=0)
+        O = self.conv(h)
+        O = F.pad(O, (0, 0, 0, self.len_after_cnn - O.size(2)),
+                  mode="constant",
+                  value=0)
 
-        # O = O.view(-1, self.fc[0].in_features)
-        res = self.fc(h)
+        O = O.view(-1, self.fc[0].in_features)
+        res = self.fc(O)
         # h = h.sum(1) / msg_len.unsqueeze(1)
         # res = self.fc2(h)
         return res

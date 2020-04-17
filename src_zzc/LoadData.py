@@ -31,90 +31,81 @@ class DataLoader(object):
     TRAIN_WITH_VALIDATION = 'train_with_val'
 
     def __init__(self, argv):
-        # seed = random.randrange(sys.maxsize)
         random.seed(argv.seed)
         print("DataLoader Seed was:", argv.seed)
 
-        self.data_root = argv.data_root
+        self.argv = argv
+        self.data_path = argv.data_path
         self.fold = argv.fold
         self.batch_size = argv.batch_size
         self.desired_len_percent = argv.desired_len_percent
+        self.mode = argv.mode
         self.desired_len = None
 
-        self.labels = set()
-        self.data_train = []
+        self.data = []
         self.data_val = []
-        self.data_test = []
 
-        self.train_data_distro = dict()
-        self.train_data_weights = None
+        self.data_distro = dict()
+        self.data_weights = None
         self.len_max = 0
         self.len_min = sys.maxsize
-        self.idx_max = 0
+        self.max_idx = 0
 
-    def read_data(self, mode):
+        self.label_is_val = False
+
+    def read_data(self):
         """
             Read data in
         """
-        print(f"Reading data for {mode}")
+        print(f"Reading data from {self.data_path}")
 
-        self.data_train = []
-        self.data_val = []
-        self.data_test = []
-        with open(os.path.join(self.data_root, 'Training.txt'),
-                  "r",
-                  encoding="utf-8") as f:
+        self.data = []
+        with open(self.data_path, "r", encoding="utf-8") as f:
             for line in f:
                 msg = line.strip().split(',')
                 msg = [int(item) for item in msg]
-                self.data_train.append(DataItem(msg))
+                self.data.append(DataItem(msg))
                 self.len_max = len(msg) if len(msg) > self.len_max else self.len_max # yapf: disable
                 self.len_min = len(msg) if len(msg) < self.len_min else self.len_min # yapf: disable
-                idx_max = max(msg)
-                self.idx_max = idx_max if idx_max > self.idx_max else self.idx_max # yapf: disable
+                max_idx = max(msg)
+                self.max_idx = max_idx if max_idx > self.max_idx else self.max_idx # yapf: disable
 
-        with open(os.path.join(self.data_root, 'Training_Label.txt'),
-                  "r",
-                  encoding="utf-8") as f:
-            for i, line in enumerate(f):
-                gt = line.strip()
-                gt = int(gt)
-                self.data_train[i].set_gt(gt)
-                self.labels.add(gt)
-                self.train_data_distro[gt] = self.train_data_distro.get(gt, 0) + 1 # yapf: disable
+        f_name, f_ext = os.path.splitext(self.data_path)
+        label_path = f"{f_name}_Label{f_ext}"
+        if os.path.exists(label_path):
+            self.label_is_val = True
+            print(f"Reading data label from {label_path}")
+            with open(label_path, "r", encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    gt = line.strip()
+                    gt = int(gt)
+                    self.data[i].set_gt(gt)
+                    self.data_distro[gt] = self.data_distro.get(gt, 0) + 1 # yapf: disable
 
-        # compute the weight for losses of each classes
-        self.train_data_weights = [
-            max(self.train_data_distro.values()) / self.train_data_distro[key]
-            for key in self.labels
-        ]
-        self.desired_len = int(self.len_min + self.desired_len_percent *
-                               (self.len_max - self.len_min))
+        if self.mode == 'train':
+            random.shuffle(self.data)
+            pivot = int(len(self.data) / self.fold)
+            self.data_val = self.data[:pivot]
+            self.data = self.data[pivot:]
+            for data in self.data_val:
+                self.data_distro[data.gt] -= 1
 
-        random.shuffle(self.data_train)
-        if mode == self.TRAIN_WITH_VALIDATION:
-            pivot = int(len(self.data_train) / self.fold)
-            self.data_val = self.data_train[:pivot]
-            self.data_train = self.data_train[pivot:]
+            # compute the weight for losses of each classes
+            self.data_weights = [
+                max(self.data_distro.values()) / self.data_distro[key]
+                for key in list(range(1, self.argv.num_label + 1))
+            ]
+            self.desired_len = int(self.len_min + self.desired_len_percent *
+                                (self.len_max - self.len_min))
 
-        with open(os.path.join(self.data_root, 'Test.txt'),
-                  "r",
-                  encoding="utf-8") as f:
-            for line in f:
-                msg = line.strip().split(',')
-                msg = [int(item) for item in msg]
-                self.data_test.append(DataItem(msg))
-
-    def get_batch(self, train=False, val=False):
+    def get_batch(self, val=False):
         """
             Get data in batchs for DNN
         """
-        if train:
-            return self._get_batch_helper(self.data_train)
-        elif val:
-            return self._get_batch_helper(self.data_val)
+        if not val:
+            return self._get_batch_helper(self.data)
         else:
-            return self._get_batch_helper(self.data_test)
+            return self._get_batch_helper(self.data_val)
 
     def _get_batch_helper(self, data):
         for i in range(math.ceil(len(data) / self.batch_size)):
@@ -126,9 +117,6 @@ class DataLoader(object):
                 batch = data[start:]
                 for i in range(self.batch_size - len(batch)):
                     batch.append(data[i])
-
-                # while len(batch) < self.batch_size:
-                #     batch.append(random.choice(data))
 
             for item in batch:
                 if len(item.msg) < self.desired_len:
@@ -142,22 +130,22 @@ class DataLoader(object):
                 len(item.msg) - item.msg.count(0) for item in batch
             ]]
 
-    def prepare_data(self):
-        """
-            Prepare the data into index form, pad if undersized, truncate if oversized
-        """
-        # prepare the data into idxs
-        for gt, msg in data:
-            idx = []
+    # def prepare_data(self):
+    #     """
+    #         Prepare the data into index form, pad if undersized, truncate if oversized
+    #     """
+    #     # prepare the data into idxs
+    #     for gt, msg in data:
+    #         idx = []
 
-            for word in msg:
-                # TODO: Add Unknown word support
-                if word in self.word2idx.keys():
-                    idx.append(self.word2idx[word])
+    #         for word in msg:
+    #             # TODO: Add Unknown word support
+    #             if word in self.word2idx.keys():
+    #                 idx.append(self.word2idx[word])
 
-            if len(idx) == 0:
-                continue
-            elif len(idx) < self.desired_len:
-                idx.extend([0] * (self.desired_len - len(idx)))
-            else:
-                idx = idx[:self.desired_len]
+    #         if len(idx) == 0:
+    #             continue
+    #         elif len(idx) < self.desired_len:
+    #             idx.extend([0] * (self.desired_len - len(idx)))
+    #         else:
+    #             idx = idx[:self.desired_len]

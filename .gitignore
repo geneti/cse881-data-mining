@@ -2,6 +2,7 @@
 *.png
 *results
 *checkpoint*
+*res*
 
 # ChangLiu add
 dataset/PCA
