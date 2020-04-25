@@ -1,13 +1,13 @@
 start=1
-end=10
+end=1
 for i in $(seq $start $end);
     do
-    model="nb"
+    model="blstm"
 
     # model
     mode="--mode train"
     data_path="--data_path ./src_zzc/data_ensemble/Training.txt"
-    res_root="--res_root ./src_zzc/res_ensemble"
+    res_root="--res_root /mnt/gs18/scratch/users/chenzho7/cse881/res_ensemble"
     fold="--fold 5"
     # seed="--seed 1"
 
@@ -37,7 +37,7 @@ for i in $(seq $start $end);
     cnn_kernel_sz="--cnn_kernel_sz 3"
     cnn_pool_kernel_sz="--cnn_pool_kernel_sz 2"
 
-    command="./venv/bin/python ./src_zzc/main.py $model --is_disk_limited --is_redirected $mode $data_path $res_root $fold $seed $epoch $batch_size $lr $desired_len_percent $optimizer $activate_func $dan_hidden_sz $dan_num_hidden $emb_drop_r $emb_size $lstm_drop_r $lstm_n_layer $lstm_hidden_sz $cnn_n_kernel $cnn_kernel_sz $cnn_pool_kernel_sz"
+    command="$SCRATCH/venv/bin/python ./src_zzc/main.py $model --is_disk_limited --is_redirected $mode $data_path $res_root $fold $seed $epoch $batch_size $lr $desired_len_percent $optimizer $activate_func $dan_hidden_sz $dan_num_hidden $emb_drop_r $emb_size $lstm_drop_r $lstm_n_layer $lstm_hidden_sz $cnn_n_kernel $cnn_kernel_sz $cnn_pool_kernel_sz"
 
     echo "Running "
     echo $command

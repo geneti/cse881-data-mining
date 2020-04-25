@@ -1,0 +1,50 @@
+#!/bin/bash --login
+########## SBATCH Lines for Resource Request ##########
+
+# limit of wall clock time - how long the job will run (same as -t)
+#SBATCH --time=01:00:00
+
+# number of different nodes - could be an exact number or a range of nodes 
+#SBATCH --nodes=1
+
+#SBATCH --gres=gpu:k80:1
+
+# memory required per allocated  Node  - amount of memory (in bytes)
+#SBATCH --mem=100G                  
+
+#Send email notification to your MSU email when the job begins, ends, or is aborted by the scheduler.
+#SBATCH --mail-user=chenzho7@msu.edu   
+#SBATCH --mail-type=FAIL,BEGIN,END
+
+# you can give your job a name for easier identification (same as -J)
+#SBATCH --job-name CSE881_proj
+#SBATCH --output /mnt/gs18/scratch/users/chenzho7/cse881/slurm_output/ensemble_%j.out
+ 
+########## Command Lines to Run ##########
+
+
+cd $SLURM_SUBMIT_DIR
+
+python="./venv/bin/python"
+
+command="srun --gres=gpu:1 $python ./src_zzc/ensemble_run_test.py"
+
+echo "Running "
+echo $command
+echo ""
+echo ""
+
+eval $command
+
+
+command="srun --gres=gpu:1 $python ./src_zzc/ensemble.py"
+echo "Running "
+echo $command
+echo ""
+echo ""
+
+eval $command
+
+
+echo ""
+echo "Done"

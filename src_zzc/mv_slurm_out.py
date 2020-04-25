@@ -1,7 +1,7 @@
 import os
 
-res_root = "./src_zzc/res_ensemble"
-slurm_out = "./slurm_output"
+res_root = "/mnt/gs18/scratch/users/chenzho7/cse881/res_ensemble"
+slurm_out = "/mnt/gs18/scratch/users/chenzho7/cse881/slurm_output"
 
 res_root_d = [os.path.join(res_root, f) for f in os.listdir(res_root)]
 slurm_out_f = [os.path.join(slurm_out, f) for f in os.listdir(slurm_out)]

@@ -1,0 +1,9 @@
+numpy
+sklearn
+seaborn
+pandas
+matplotlib
+torch
+torchvision
+pylint
+yapf
